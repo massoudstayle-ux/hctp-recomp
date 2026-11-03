@@ -78,3 +78,12 @@ Build a native Android ARM64 port of WWE SmackDown! Here Comes the Pain (USA, SL
 - Extended `patches/apply_android_compat.py` to select `sse2neon.h` on Android and provide an Android `_BitScanForward` implementation using the compiler's count-trailing-zeros builtin. These edits remain limited to the temporary CI checkout; the pinned submodule and upstream repository are not modified.
 - Updated the workflow path filter so changes to the compatibility script trigger a new smoke build.
 - The next run must be checked for any further native compile errors. No APK or playable game is confirmed at this stage.
+
+
+## Successful Android runtime smoke build (2026-11-03)
+- Run `41722226602` completed successfully. All workflow steps passed, including native Gradle/CMake build and artifact upload.
+- Confirmed artifact: `hctp-android-runtime-shell`, artifact ID `13271953785`, size 3,556,808 bytes, not expired at the time of inspection.
+- This verifies that the generic Android runtime shell can be assembled by CI with the current ARM64 compatibility edits.
+- It does **not** verify that HCTP game code, disc data, ELF, or assets are integrated; it is not yet a playable WWE SmackDown! Here Comes the Pain port.
+- No ISO or game-derived files were uploaded to GitHub. No physical Android device installation, boot, touch-input, graphics-performance, or audio/video test has been performed.
+- Next engineering phase: add a reproducible local/private HCTP preparation pipeline, confirm the generated runner and overrides are built into the Android app, then implement touch controls and test on an ARM64 phone. Preserve `main` unchanged and continue on `android-port`.
