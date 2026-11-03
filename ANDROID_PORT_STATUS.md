@@ -35,10 +35,12 @@ Build a native Android ARM64 port of WWE SmackDown! Here Comes the Pain (USA, SL
 ## CI baseline added
 
 - Added `.github/workflows/android-runtime-smoke.yml` on the `android-port` branch.
-- It checks out only the PS2Recomp submodule, installs JDK 17 / Android SDK 34 / NDK 28.2 / CMake 3.22.1, generates the Gradle 8.9 wrapper, and attempts to build a generic runtime APK.
+- The workflow checks out only the PS2Recomp submodule, installs JDK 17 / Android SDK 34 / NDK 28.2 / CMake 3.22.1, generates the Gradle 8.9 wrapper, and builds a generic runtime APK.
 - The artifact is named `hctp-android-runtime-shell` and is retained for 7 days.
-- This workflow deliberately does **not** extract or compile HCTP game code and does **not** include the user's ISO, ELF, or game assets. Its APK is a toolchain smoke-test shell, not a playable game.
-- No workflow run or APK artifact has been observed yet. The workflow file is committed, but the build is not verified.
+- The workflow deliberately does **not** extract or compile HCTP game code and does **not** include the user's ISO, ELF, or game assets. Its APK is a toolchain smoke-test shell, not a playable game.
+- First run `41718919018` failed before compilation because the old Android SDK setup action requested Google's removed `tools` package. The workflow was corrected to use setup-android v4 and explicitly install `platform-tools`.
+- Corrected run `41719037733` passed Android SDK setup and package installation; its Gradle/CMake build step is currently in progress. A temporary duplicate retry run `41719082682` was also started while correcting the workflow; the duplicate workflow file was removed afterwards.
+- No APK artifact has been confirmed yet. Check the [GitHub Actions runs](https://github.com/massoudstayle-ux/hctp-recomp/actions) for the final result.
 
 ## Recommended implementation order
 
@@ -53,6 +55,7 @@ Build a native Android ARM64 port of WWE SmackDown! Here Comes the Pain (USA, SL
 ## Verification record
 
 - Confirmed: fork branch and repository files inspected remotely; Android Gradle files, Android manifest, PS2Recomp CMake files, renderer selection logic, and Android runtime stub inspected.
-- Confirmed: status documentation updated and Android runtime smoke workflow committed on `android-port`.
-- Not done: no Android APK build, no device install, no game boot, no touch-input test, and no performance test.
+- Confirmed: status documentation and Android runtime smoke workflow committed on `android-port`.
+- Confirmed: corrected workflow passed SDK setup and Android package installation; native CMake/Gradle build is still running.
+- Not done: no completed APK build, no device install, no game boot, no touch-input test, and no performance test.
 - The user's ISO has not been accessed or inspected by this workflow.
