@@ -1,0 +1,42 @@
+diff --git a/ps2xRuntime/src/lib/ps2_chain.cpp b/ps2xRuntime/src/lib/ps2_chain.cpp
+--- a/ps2xRuntime/src/lib/ps2_chain.cpp
++++ b/ps2xRuntime/src/lib/ps2_chain.cpp
+@@ -357,7 +357,10 @@ void hctpFenceNote(PS2Runtime &rt, int reason, double ms)
+     static std::map<uint64_t, FenceAcc> acc;
+     static auto last = std::chrono::steady_clock::now();
+     R5900Context *ctx = rt.currentEeContext();
+-    const uint32_t ra = ctx ? static_cast<uint32_t>(ctx->r[31].m128i_u32[0]) : 0u;
++    uint32_t ra = 0u;
++    // Read the low 32 bits without relying on the x86-only __m128i union fields.
++    if (ctx)
++        std::memcpy(&ra, &ctx->r[31], sizeof(ra));
+     const uint32_t pc = ctx ? ctx->pc : 0u;
+     FenceAcc &a = acc[(static_cast<uint64_t>(reason) << 56) | (static_cast<uint64_t>(ra) << 28) | (pc & 0xFFFFFFFu)];
+diff --git a/ps2xRuntime/src/lib/hctp_native_movie.cpp b/ps2xRuntime/src/lib/hctp_native_movie.cpp
+--- a/ps2xRuntime/src/lib/hctp_native_movie.cpp
++++ b/ps2xRuntime/src/lib/hctp_native_movie.cpp
+@@ -1,5 +1,8 @@
+ // HCTP native movie player (see hctp_native_movie.h). One decoder thread per channel: FFmpeg demuxes the .sfd (MPEG
+ // program stream: MPEG-1 video + CRI ADX audio), decodes both, queues the pictures (kept as decoded YUV, converted to
+ // the size the game asks for when it asks) and resamples the audio to 48 kHz s16 stereo for a host stream. The audio
+ // stream's played samples are the clock; a movie without audio runs on the wall clock.
+ #include "hctp_native_movie.h"
++#if PS2X_HAS_FFMPEG
+ #include "ps2_host_backend.h"
+ 
+ extern "C"
+@@ -503,3 +506,25 @@ extern "C" bool hctpMovieFrame(int ch, uint8_t *rgba, int w, int h)
+     mv.cv.notify_all();
+     return true;
+ }
++#else
++// Android's initial runtime build has no bundled FFmpeg libraries. Keep the movie API
++// available while reporting movies as unavailable until an Android decoder is added.
++extern "C" bool hctpMovieOpen(int, const char *, int, bool) { return false; }
++extern "C" void hctpMovieStop(int) {}
++extern "C" void hctpMoviePause(int, bool) {}
++extern "C" bool hctpMovieActive(int) { return false; }
++extern "C" int hctpMovieStatus(int) { return 0; }
++extern "C" bool hctpMovieFrame(int, uint8_t *, int, int) { return false; }
++extern "C" void hctpMovieSetVolume(int, float) {}
++#endif
