@@ -61,3 +61,10 @@ Build a native Android ARM64 port of WWE SmackDown! Here Comes the Pain (USA, SL
 - Confirmed: Android compatibility patch and workflow application step committed to `android-port`; awaiting a fresh CI build to validate it.
 - Not done: no completed APK build, no device install, no game boot, no touch-input test, and no performance test.
 - The user's ISO has not been accessed or inspected by this workflow.
+
+
+## Follow-up CI correction (2026-11-03)
+- Run `41720326996` failed before compilation because the hand-authored unified diff was malformed (`corrupt patch` at line 15). No APK was produced.
+- Replaced that fragile patch application with `patches/apply_android_compat.py`, which performs checked exact-text edits in the temporary CI checkout only: ARM64-safe register read and FFmpeg-disabled movie stubs.
+- Workflow now invokes the script after checking out the pinned submodule. The source submodule and upstream repository remain unchanged; only the CI workspace is edited.
+- A fresh run is triggered by this workflow change. Its result must be checked before claiming the runtime builds.
