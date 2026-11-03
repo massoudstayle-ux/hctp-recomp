@@ -68,3 +68,13 @@ Build a native Android ARM64 port of WWE SmackDown! Here Comes the Pain (USA, SL
 - Replaced that fragile patch application with `patches/apply_android_compat.py`, which performs checked exact-text edits in the temporary CI checkout only: ARM64-safe register read and FFmpeg-disabled movie stubs.
 - Workflow now invokes the script after checking out the pinned submodule. The source submodule and upstream repository remain unchanged; only the CI workspace is edited.
 - A fresh run is triggered by this workflow change. Its result must be checked before claiming the runtime builds.
+
+
+## Follow-up CI findings and ARM64 fixes (2026-11-03)
+- Run `41720843340` passed checkout, submodule initialization, the compatibility-edit script, Java/Android SDK setup, package installation, and Gradle setup. Native compilation then failed; no APK was uploaded.
+- The native log exposed two additional x86/Windows-only intrinsic assumptions:
+  - `hctp_native_vu1.cpp` included x86-only `xmmintrin.h` despite Android enabling the `USE_SSE2NEON` compatibility layer.
+  - `ps2_vu1_core.cpp` included Windows `intrin.h` for `_BitScanForward`, which the Android NDK does not provide.
+- Extended `patches/apply_android_compat.py` to select `sse2neon.h` on Android and provide an Android `_BitScanForward` implementation using the compiler's count-trailing-zeros builtin. These edits remain limited to the temporary CI checkout; the pinned submodule and upstream repository are not modified.
+- Updated the workflow path filter so changes to the compatibility script trigger a new smoke build.
+- The next run must be checked for any further native compile errors. No APK or playable game is confirmed at this stage.
