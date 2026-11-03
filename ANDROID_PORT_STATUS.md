@@ -1,37 +1,49 @@
 # Android Port Status
 
+Last inspected: 2026-11-03
+
 ## Goal
 
-Prepare a native Android ARM64 build of WWE SmackDown! Here Comes the Pain (USA, SLUS-20787). This is a port/recompilation target, not a PSP/PS2 emulator frontend.
+Build a native Android ARM64 port of WWE SmackDown! Here Comes the Pain (USA, SLUS-20787). This is intended to be an Android application, not a PSP/PS2 emulator frontend.
 
-## Safety rules
+## Repository safety
 
-- Keep the upstream repository and the `main` branch unchanged.
-- Never commit an ISO, ELF, IRX, extracted game assets, generated game C++, save data, or other copyrighted game-derived files.
-- Keep all game-derived build inputs and outputs on the user's private build machine/storage.
-- Work only on the `android-port` branch until changes are reviewed.
+- Keep upstream `BigDaddyJRich/hctp-recomp` unchanged.
+- Keep development on this fork's `android-port` branch; do not merge into `main` until reviewed.
+- Never commit the user's ISO, extracted disc files, SLUS ELF, generated game C++, game assets, saves, or a game-containing APK.
+- Game-derived inputs and binaries must stay in the user's private storage. CI may only build/test a runtime shell that contains no game data unless a private, authorized workflow is designed and reviewed separately.
 
-## Repository findings (2026-11-03)
+## Confirmed repository state
 
-- The fork exists and its default branch is `main`.
-- The HCTP repository includes PS2Recomp as a Git submodule, pinned to commit `f2a246a6f11ef5203ce4d74763c2c4599ab4f895`.
-- At that exact submodule commit, the top-level PS2Recomp CMake file has an `ANDROID` branch that disables the recompiler, analyzer, tests and studio, and builds the runtime only.
-- The pinned PS2Recomp submodule also contains an `android/` Gradle project. Its README describes an Android runner APK build using Android SDK 34, NDK, Gradle 8.7+ and JDK 17. The app targets `arm64-v8a` and `x86_64`, and expects a guest ELF path supplied through `PS2X_DEFAULT_BOOT_ELF`.
-- This is evidence that the generic PS2Recomp runtime has an Android runner path; it does **not** prove that this HCTP game configuration, HCTP-specific overrides, GS/VU renderer, audio, video, or input currently work on Android.
-- The HCTP root README describes a native Windows build and a Direct3D 11 renderer. The changelog and older handoff notes also refer to a Vulkan/paraLLEl-GS path. This documentation mismatch must be resolved by inspecting the exact checked-in renderer and CMake source before selecting an Android graphics backend.
-- The HCTP repository's Windows build scripts use Windows batch files and MSVC-specific settings. They cannot simply be run by Android Gradle.
+- Fork: `massoudstayle-ux/hctp-recomp`
+- Working branch: `android-port`
+- HCTP repository submodule `PS2Recomp` is pinned to commit `f2a246a6f11ef5203ce4d74763c2c4599ab4f895`.
+- The HCTP repo stores game-specific overrides in `overrides_hctp/`; the existing Windows handoff says these are copied into `PS2Recomp/ps2xRuntime/src/runner/` before compiling. The actual generated game code is also produced locally from the user's own disc.
+- The Android Gradle project is inside the PS2Recomp submodule at `PS2Recomp/android/`. Its manifest uses Android NativeActivity and loads the `ps2EntryRunner` native library.
+- Android build settings use SDK 34, NDK 28.2.13676358, CMake 3.22.1, minSdk 28, and ABI filters `arm64-v8a` and `x86_64`. The Gradle project does not include the Gradle wrapper scripts; its README says to generate a Gradle 8.9 wrapper or use Android Studio.
+- The PS2Recomp top-level CMake file detects Android, disables the recompiler/analyzer/tests/studio, and builds the runtime. It uses raylib's Android platform backend and links Android system libraries.
+- The runtime creates `ps2EntryRunner` as a shared library for Android and uses the configured `PS2X_DEFAULT_BOOT_ELF` path because Android NativeActivity does not provide a normal command-line argument.
 
-## Next engineering steps
+## Important blockers found in source
 
-1. Inspect the pinned PS2Recomp Android runner source and identify how the Android app launches the runtime and obtains game files.
-2. Inspect HCTP-specific CMake options, overrides, renderer selection, GS/VU implementation and IOP/audio integration.
-3. Determine whether the existing renderer can target Android/Vulkan or whether a separate Android renderer is required.
-4. Add only the smallest Android-specific build integration, preserving Windows build files and defaults.
-5. Build an APK from source without any game data, then test the runtime with a privately supplied legal game dump.
-6. Add touch controls and Android file selection only after the game boots and renders reliably.
+1. **The HCTP native renderer is Windows-only.** Its documented native host uses Win32, Direct3D 11, XInput and XAudio2. Android cannot build this host as-is.
+2. **The optional paraLLEl-GS/Vulkan GPU backend is currently guarded by `WIN32 AND NOT PS2X_IS_ANDROID` in `ps2xRuntime/CMakeLists.txt`.** Therefore the Android build does not compile `gs_gpu_parallel.cpp` or `gs_vulkan_present.cpp`; it selects `gs_gpu_none.cpp`. The comment in that file describes the no-paraLLEl-GS configuration as CPU-renderer-only. The existence of a Vulkan presenter source file does not mean it is enabled on Android.
+3. **Touch controls are not implemented.** `ps2xRuntime/src/lib/ps2_android_runtime.cpp` currently contains a TODO for an on-screen joystick/button overlay and no implementation.
+4. **Game-specific code is not automatically in the Android APK.** The Android build must compile the HCTP-specific overrides and locally generated runner sources. The current Android Gradle file only points CMake at the PS2Recomp submodule and sets a default ELF path; it does not perform the HCTP disc extraction/recompilation or copy the HCTP override files.
+5. **Video support is reduced by default on Android.** PS2Recomp's CMake defaults FFmpeg off for Android, with MPEG video falling back to stub frames unless a compatible Android video path is added.
 
-## Current verification
+## Recommended implementation order
 
-- Repository access and branch creation were confirmed through GitHub.
-- Source files and submodule metadata were inspected remotely.
-- No APK has been built, no game has been launched, and no Android device test has been performed yet.
+1. Add a CI smoke-build for the generic Android runtime only (no ISO, ELF, generated game code, or game assets). This validates the Android toolchain and APK packaging, not gameplay.
+2. Create an Android-specific preparation/build script that copies only source override files from this repository into the submodule's runner source directory and accepts generated game code from a private local build step.
+3. Keep the existing raylib Android host initially. Confirm the CPU GS path can boot HCTP before attempting GPU acceleration.
+4. Add Android touch controls and controller mapping after the first successful boot.
+5. Profile the CPU GS path. If it is too slow, design a real Android Vulkan GS backend; do not assume the existing Windows Vulkan presenter can be reused unchanged.
+6. Restore video playback with an Android-compatible decoder only after the core game and audio work.
+7. Build and test on a physical Android ARM64 device before calling the port playable.
+
+## Verification record
+
+- Confirmed: fork branch and repository files inspected remotely; Android Gradle files, Android manifest, PS2Recomp CMake files, renderer selection logic, and Android runtime stub inspected.
+- Not done: no Android APK build, no device install, no game boot, no touch-input test, and no performance test.
+- The user's ISO has not been accessed or inspected by this workflow.
