@@ -32,9 +32,17 @@ Build a native Android ARM64 port of WWE SmackDown! Here Comes the Pain (USA, SL
 4. **Game-specific code is not automatically in the Android APK.** The Android build must compile the HCTP-specific overrides and locally generated runner sources. The current Android Gradle file only points CMake at the PS2Recomp submodule and sets a default ELF path; it does not perform the HCTP disc extraction/recompilation or copy the HCTP override files.
 5. **Video support is reduced by default on Android.** PS2Recomp's CMake defaults FFmpeg off for Android, with MPEG video falling back to stub frames unless a compatible Android video path is added.
 
+## CI baseline added
+
+- Added `.github/workflows/android-runtime-smoke.yml` on the `android-port` branch.
+- It checks out only the PS2Recomp submodule, installs JDK 17 / Android SDK 34 / NDK 28.2 / CMake 3.22.1, generates the Gradle 8.9 wrapper, and attempts to build a generic runtime APK.
+- The artifact is named `hctp-android-runtime-shell` and is retained for 7 days.
+- This workflow deliberately does **not** extract or compile HCTP game code and does **not** include the user's ISO, ELF, or game assets. Its APK is a toolchain smoke-test shell, not a playable game.
+- No workflow run or APK artifact has been observed yet. The workflow file is committed, but the build is not verified.
+
 ## Recommended implementation order
 
-1. Add a CI smoke-build for the generic Android runtime only (no ISO, ELF, generated game code, or game assets). This validates the Android toolchain and APK packaging, not gameplay.
+1. Get the generic Android runtime smoke build passing.
 2. Create an Android-specific preparation/build script that copies only source override files from this repository into the submodule's runner source directory and accepts generated game code from a private local build step.
 3. Keep the existing raylib Android host initially. Confirm the CPU GS path can boot HCTP before attempting GPU acceleration.
 4. Add Android touch controls and controller mapping after the first successful boot.
@@ -45,5 +53,6 @@ Build a native Android ARM64 port of WWE SmackDown! Here Comes the Pain (USA, SL
 ## Verification record
 
 - Confirmed: fork branch and repository files inspected remotely; Android Gradle files, Android manifest, PS2Recomp CMake files, renderer selection logic, and Android runtime stub inspected.
+- Confirmed: status documentation updated and Android runtime smoke workflow committed on `android-port`.
 - Not done: no Android APK build, no device install, no game boot, no touch-input test, and no performance test.
 - The user's ISO has not been accessed or inspected by this workflow.
