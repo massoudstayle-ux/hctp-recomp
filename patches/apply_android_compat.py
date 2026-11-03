@@ -41,4 +41,41 @@ extern "C" bool hctpMovieFrame(int, uint8_t *, int, int) { return false; }
 """
 s = s.rstrip() + "\n" + stubs
 movie.write_text(s)
+
+# The VU1 interpreter uses the Windows _BitScanForward intrinsic only to find
+# the first set bit in a 32-bit register mask. Provide the same behavior on Android.
+vu = root / "ps2xRuntime/src/lib/vu/ps2_vu1_core.cpp"
+s = vu.read_text()
+old = "#include <intrin.h>"
+new = """#if defined(__ANDROID__)
+static inline unsigned char _BitScanForward(unsigned long *index, unsigned long mask)
+{
+    if (mask == 0ul)
+        return 0;
+    *index = static_cast<unsigned long>(__builtin_ctzl(mask));
+    return 1;
+}
+#else
+#include <intrin.h>
+#endif"""
+if old not in s:
+    raise SystemExit("Expected intrin.h include was not found")
+s = s.replace(old, new, 1)
+vu.write_text(s)
+
+# Use the bundled sse2neon compatibility header on ARM64 instead of Clang's
+# x86-only xmmintrin.h. The build already defines USE_SSE2NEON on Android.
+native_vu = root / "ps2xRuntime/src/lib/hctp_native_vu1.cpp"
+s = native_vu.read_text()
+old = "#include <xmmintrin.h>"
+new = """#if defined(__ANDROID__) && defined(USE_SSE2NEON)
+#include <sse2neon.h>
+#else
+#include <xmmintrin.h>
+#endif"""
+if old not in s:
+    raise SystemExit("Expected xmmintrin.h include was not found")
+s = s.replace(old, new, 1)
+native_vu.write_text(s)
+
 print("Applied Android-only compatibility edits to the CI checkout.")
