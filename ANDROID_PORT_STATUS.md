@@ -39,8 +39,9 @@ Build a native Android ARM64 port of WWE SmackDown! Here Comes the Pain (USA, SL
 - The artifact is named `hctp-android-runtime-shell` and is retained for 7 days.
 - The workflow deliberately does **not** extract or compile HCTP game code and does **not** include the user's ISO, ELF, or game assets. Its APK is a toolchain smoke-test shell, not a playable game.
 - First run `41718919018` failed before compilation because the old Android SDK setup action requested Google's removed `tools` package. The workflow was corrected to use setup-android v4 and explicitly install `platform-tools`.
-- Corrected run `41719037733` passed Android SDK setup and package installation; its Gradle/CMake build step is currently in progress. A temporary duplicate retry run `41719082682` was also started while correcting the workflow; the duplicate workflow file was removed afterwards.
-- No APK artifact has been confirmed yet. Check the [GitHub Actions runs](https://github.com/massoudstayle-ux/hctp-recomp/actions) for the final result.
+- Corrected runs `41719037733` and `41719082682` both passed Android SDK setup, package installation, and Gradle setup, then failed during native C++ compilation. The logs exposed two Android blockers: `ps2_chain.cpp` accessed the x86-specific `__m128i.m128i_u32` field on ARM64, and `hctp_native_movie.cpp` included FFmpeg headers even though Android config disables FFmpeg.
+- Added `patches/android-runtime-compat.patch` to the HCTP fork. The workflow applies this patch to the checked-out pinned PS2Recomp submodule before building: it reads the low 32-bit register value with `memcpy` (portable to ARM64), and supplies no-FFmpeg movie API stubs when `PS2X_HAS_FFMPEG=0`. This does not alter the upstream PS2Recomp repository or the pinned submodule commit; the patch is versioned in this fork and applied in CI only.
+- A new CI run will verify that the patch applies and whether compilation advances. No APK artifact has been confirmed yet. The generic shell, even if built, is not a playable HCTP game.
 
 ## Recommended implementation order
 
@@ -56,6 +57,7 @@ Build a native Android ARM64 port of WWE SmackDown! Here Comes the Pain (USA, SL
 
 - Confirmed: fork branch and repository files inspected remotely; Android Gradle files, Android manifest, PS2Recomp CMake files, renderer selection logic, and Android runtime stub inspected.
 - Confirmed: status documentation and Android runtime smoke workflow committed on `android-port`.
-- Confirmed: corrected workflow passed SDK setup and Android package installation; native CMake/Gradle build is still running.
+- Confirmed: corrected workflow runs passed SDK setup and Android package installation, but native compilation failed on the two issues listed above.
+- Confirmed: Android compatibility patch and workflow application step committed to `android-port`; awaiting a fresh CI build to validate it.
 - Not done: no completed APK build, no device install, no game boot, no touch-input test, and no performance test.
 - The user's ISO has not been accessed or inspected by this workflow.
