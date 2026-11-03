@@ -26,8 +26,8 @@ jobs:
       - name: Initialize only the PS2Recomp submodule
         run: git submodule update --init PS2Recomp
 
-      - name: Apply Android compatibility patch to the pinned runtime submodule
-        run: git -C PS2Recomp apply ../patches/android-runtime-compat.patch
+      - name: Apply Android compatibility edits to the CI checkout
+        run: python3 patches/apply_android_compat.py
 
       - name: Set up Java
         uses: actions/setup-java@v4
